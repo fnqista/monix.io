@@ -55,16 +55,16 @@ val cancelable = source
 
 ```
 
-At its simplest, `Observable` is a replacement for your regular
+At its simplest, an `Observable` is a replacement for your regular
 [Iterable]({{ site.scalaapi }}#scala.collection.Iterable)
 or Scala 
 [Stream]({{ site.scalaapi }}#scala.collection.immutable.Stream), 
 but with the ability to process asynchronous events without blocking. 
-And in fact you can convert any `Iterable` into an `Observable`.
+In fact, you can convert any `Iterable` into an `Observable`.
 
-But `Observable` scales to complex problems, touching on
+But this `Observable` implementation scales to complex problems, touching on
 *[functional reactive programming (FRP)](https://en.wikipedia.org/wiki/Functional_reactive_programming)*,
-or it can model complex interactions between producers and consumers,
+and it can also model complex interactions between producers and consumers,
 being a potent alternative for
 [the actor model](http://akka.io/).
 
@@ -80,8 +80,8 @@ A visual representation of where it sits in the design space:
 The Monix `Observable`:
 
 - models lazy & asynchronous streaming of events
-- it is highly composable and lawful
-- it's basically the
+- highly composable and lawful
+- basically the
   [Observer pattern](https://en.wikipedia.org/wiki/Observer_pattern)
   on steroids
 - you can also think of it as being like a Scala
@@ -95,8 +95,8 @@ The Monix `Observable`:
   producer pushing data into one or multiple consumers
 - works best for unidirectional communications
 - allows fine-grained control over the [execution model](../execution/scheduler.html#execution-model)
-- doesn’t trigger the execution, or any effects until `subscribe`
-- allows for cancelling of active streams
+- doesn’t trigger the execution, or any effects until a client `subscribe`s
+- allows cancellation of active streams
 - never blocks any threads in its implementation 
 - does not expose any API calls that can block threads
 - compatible with [Scala.js](http://www.scala-js.org/) like the rest of Monix
@@ -105,23 +105,23 @@ See **[comparisons with similar tools, like Akka or FS2](./observable-comparison
 
 ### Learning resources
 
-The following documentation barely scratches a surface of `Observable` and is rather incomplete.
-If you find it lacking, make sure to check either [Observable API]({{ site.api3x }}monix/reactive/Observable.html) or
-comments [in the code](https://github.com/monix/monix) directly. We put a lot of focus on scala docs. 
+The following documentation barely scratches the surface of `Observable` and is rather incomplete.
+If you find it lacking, make sure to check either the [Observable API]({{ site.api3x }}monix/reactive/Observable.html) or
+look at the comments [in the code](https://github.com/monix/monix) directly. We put a lot of focus on scaladocs. 
 
-Other great resource is a [ReactiveX](http://reactivex.io/) documentation and everything about it which opens doors
+Another great resource is the [ReactiveX](http://reactivex.io/) documentation, which opens doors
 to plenty of books, blog posts and Stack Overflow answers.
-There are significant differences in the model but majority of functions behave the same so it is a fantastic source
+There are significant differences in the model, but the majority of functions behave the same, so it is a fantastic source
 of examples and additional explanations.
 
-Last but not least, we are always happy to help on [gitter channel](https://gitter.im/monix/monix). Any feedback
+And last but not the least, we are always happy to help on [gitter channel](https://gitter.im/monix/monix). Any feedback
 regarding the documentation itself (like confusing wording) is really appreciated too.
 
 ## Observable Contract
 
-`Observable` can be thought about as the next layer of abstraction in regard to `Observer` and `Subscriber`.
+An `Observable` can be thought of as the next layer of abstraction with regard to `Observer` and `Subscriber`.
 
-You could describe `Observable` in the following way:
+An `Observable` can be described in the following way:
 
 ```scala
 trait Observable[+A] {
@@ -129,7 +129,7 @@ trait Observable[+A] {
 }
 ```
 
-where `Observer` is:
+where an `Observer` is:
 
 ```scala
 trait Observer[-T] {
@@ -141,18 +141,17 @@ trait Observer[-T] {
 }
 ```
 
-`Observer` subscribes to `Observable` so `Observable` internals need to respect `Observer` [contract](./observers.html#contract) 
-when they pass elements there. You can consider it being higher level interface which abstracts away details of the contract and handles it for the user. 
+An `Observer` subscribes to an `Observable`, so the `Observable` internals need to respect the `Observer` [contract](./observers.html#contract) when it passes element(s) to it. You can consider it being a higher level interface which abstracts away the details of the contract and handles it for the user. 
 
 ### How it works internally
 
-If it is your first contact with this type of stream it probably sounds confusing. The understanding of underlying model 
-is not necessary to be successful user of `Observable`. If you would like to do it anyway (or perhaps contribute your own low level operators),
-I will try to explain the essence of how it works. Note that implementations of many operators are filled with optimizations so they look much more
+If you are inexperienced with non-blocking reactive streams, it probably sounds confusing. The understanding of the underlying model 
+is not necessary to be a successful user of the `Observable`, but if you would like to know anyway (also perhaps to contribute your own low level operators),
+the following paragraph tries to explain the essence of how it works. Note that the implementations of many operators are sometimes obfuscated with optimizations, which make them look much more
 complicated than they really are.
 
-`Observable` will pass through the generated items to the `Observer`. It is done by calling `onNext`.
-Imagine following situation:
+An `Observable` will pass through the generated items to the `Observer`, by calling `onNext`.
+Imagine the following situation:
 
 ```scala
 Observable.fromIterable(1 to 3)
@@ -162,73 +161,73 @@ Observable.fromIterable(1 to 3)
   .firstL // returns Task[Long]
 ``` 
 
-`fromIterable` is a builder which creates an `Observable`. This is a place which implements `subscribe`. This method passes 
-each element to its subscribers by calling `onNext`. Once the sequence is empty it calls `onComplete` to signal that there aren't any 
-elements left to process and entire `Observable` can end. 
-Note that `observer.onNext(elem)` returns `Future[Ack]`. To obey the contract and preserve back-pressure, we have to wait for its result before 
-we pass the next element. `Ack` can be either `Continue` (ok to send next element) or `Stop` (we should shut down).
-It means we have a way to stop downstream (by calling `onComplete`) and an upstream (returning `Stop` after `onNext`).
+`fromIterable` is a builder which creates an `Observable`. Hence, it implements `subscribe`. This method passes 
+each element to its subscribers by calling its `onNext` method. Once the sequence is empty it calls `onComplete` to signal that there aren't any 
+elements left to process and the entire `Observable` can end. 
+Note that the `observer.onNext(elem)` returns a `Future[Ack]`. To obey the contract and preserve back-pressure, the `Observable` will have to wait for its result before it can pass the next element. 
+`Ack` can be either `Continue` (ok to send the next element) or `Stop` (we should shut down).
+This way, we can stop the downstream processing (by calling `onComplete`) and the upstream (returning `Stop` after `onNext`).
 
-`map` is essentially `Observer => Observer` function. It implements `onNext`, `onError` and `onComplete`.
- The happy path goes like this:
+`map` is essentially an `Observer => Observer` function. It implements `onNext`, `onError` and `onComplete`.
+ The happy path goes like:
 
 ```
 (1) fromIterable calls map1.onNext(i)
-(2) map1 does transformation and calls map2.onNext(i + 2)
-(3) map2 does transformation and calls sumL.onNext(i * 3)
-(4) sum  saves and acknowledges incoming items and does not call firstL.onNext until it receives onComplete
-(5) firstL waits for the first onNext to complete a Task
+(2) map1 does some transformation and calls map2.onNext(i + 2)
+(3) map2 does some transformation and calls sumL.onNext(i * 3)
+(4) sum saves and acknowledges the incoming items and holds off on calling firstL.onNext until it receives an onComplete signal.
+(5) firstL waits for the first onNext signal to complete a Task
 ```
 
-Points (1) to (3) go in loop until the entire sequence of numbers is consumed. 
-When `sum` acknowledges (returns from `onNext` method) to `map2`, `map2` can acknowledge to `map1` which in turn
-acknowledges to `fromIterable` and a new item can be sent. 
-In case any `onNext` returns a `Stop`, it would also propagate upstream and there wouldn't be any new items generated.
+Points (1) to (3) iterate until the entire sequence of elements (in this case, numbers) are consumed. 
+When `sum` acknowledges (returns from `onNext` method) to its caller `map2`, `map2` in turn can acknowledge to its caller `map1`, which then
+acknowledges to its caller `fromIterable` - only then can a new element be sent. 
+In case any `onNext` invocations return a `Stop`, this would also propagate upstream and there wouldn't be any new elements generated.
 
-Now if you jump into the source code of operators, you will see that they are obfuscated by concurrency, error handling
-and lots of optimizations but the essence of the model works as described above. There is nothing more to it, no extra
-interpreters or materializers to add an extra layer of indirection so if this section makes sense to you, you should have
+If you try to jump into the source code of operators, you will see that they are obfuscated by concurrency, error handling 
+and lots of optimizations, but the essence of the model works as described above. There is nothing more to it, no extra
+interpreters or materializers to add an extra layer of indirection - so if this section makes sense to you, you should have
 a decent idea of what's going on "behind the scenes". 
 
 ## Observable and Functional Programming
 
-`Observable` internals are written in imperative, Java-like style. It doesn't look pretty and can be discouraging
-if you're trying to write your own operator but together with relatively simple model (in terms of operations to do) it
-buys a lot of performance and is a big reason why it does so well [in comparison to competition](https://github.com/monix/streaming-benchmarks).
+The `Observable` internals are written in an imperative, Java-like style. It doesn't look pretty and can be discouraging
+if you're trying to write your own operator. However, by using a relatively simple model (in terms of operations to do) the implementation
+is very performant and this design choice is a big reason why it does so well [in comparison to the competition](https://github.com/monix/streaming-benchmarks).
 
-However, `Observable` exposes a vast number of purely functional operators that compose very well and you can build on top of them in
-similar way to how it's done in other streaming libraries from FP ecosystem.
+Despite a mostly-imperative base, an `Observable` exposes a vast number of purely functional operators that compose really well, allowing you to build functionality on top of them in
+similar way to how it's done in other streaming libraries from the FP ecosystem.
 
-If you're mostly using available methods and want to write purely functional application then you're in luck because
-dirty internals don't leak outside and majority of API is pure and the process of constructing and executing `Observable` is also pure.
+If you're mostly using available methods and want to write a purely functional application then you're in luck because the 
+dirty internals don't leak outside and the majority of the API and the process of constructing and executing `Observable`s are all pure.
 
 The main drawback in comparison to purely functional streams, such as [fs2](https://github.com/functional-streams-for-scala/fs2) or
-[Iterant]({{ site.api3x }}monix/tail/Iterant.html) is availability of impure functions in API. If you have inexperienced 
-team members, they could be tempted to use them. Fortunately, all of them are marked with `@UnsafeBecauseImpure` annotation and explained in ScalaDoc. 
-There should always be a referentially transparent replacement to solve your use case but if your team is not fully committed to FP, these functions can be very useful.
+[Iterant]({{ site.api3x }}monix/tail/Iterant.html), is the presence of impure functions in the API. If you have inexperienced 
+team members, they could be tempted to use them. Fortunately, all of them are marked with the `@UnsafeBecauseImpure` annotation and are explained in the ScalaDoc. 
+There should always be a referentially transparent replacement to solve your specific use case but if your team is not fully committed to FP, these functions can be very useful.
 
-For instance, an efficient and convenient way to share `Observable` is using `Hot Observable` but it's not referentially transparent.
-Nevertheless, you could do the same thing using `doOnNext` or `doOnNextF` and purely functional concurrency structures from `Cats-Effect` such as `Ref` or `MVar` to share a state in more controlled manner.
+For instance, an efficient and convenient way to share an `Observable` is by using a __hot__ `Observable` - but it's not referentially transparent.
+Nevertheless, you could do the same thing using the `doOnNext` or `doOnNextF` together with some purely functional concurrency structures from `Cats-Effect` such as `Ref` or `MVar` to share state in a more controlled manner.
 
-Just like in Scala itself, decision is up to the user to choose what's better for them and their team.
+Just like in Scala itself, the decision is up to the user to choose what's better for them and their team.
 
 ## Execution
 
-When you create `Observable` nothing actually happens until `subscribe` is called.
-It can be done directly by calling `subscribe()(implicit s: Scheduler): Cancelable` which will start the processing
+When you create an `Observable` nothing actually happens until `subscribe` is called.
+Processing can be triggered directly by calling `subscribe()(implicit s: Scheduler): Cancelable` which starts
 in the background and return a `Cancelable` which can be used to stop the streaming. 
 
-If you write programs in purely functional manner and would rather combine the results of `Observables`, 
-you can convert it to [Task](./../eval/task.html) and compose it all the way through your program until the very end (Main method).
-The resulting `Task` can also be cancelled and it is recommended way to execute `Observable`.
+If you write programs in purely functional manner and would rather combine the results of `Observable`s, 
+you can convert them to [Task](./../eval/task.html)s and compose them all the way through your program until the very end (Main method).
+The resulting `Task` can also be cancelled and is the recommended way to execute an `Observable`.
 
-Two main ways to convert `Observable` into `Task` are described below.
+Two main ways to convert an `Observable` into a `Task` are described below.
 
 ### Consumer
 
-One of the ways to trigger `Observable` is to use [Consumer](./consumer.html) which can be described as a function that converts `Observable` into `Task`.
+One of the ways to trigger an `Observable` is to use a [Consumer](./consumer.html) - which can thought of as a function that converts an `Observable` into a `Task`.
 
-You can either create your own `Consumer` or use one of many prebuilt ones:
+You can either create your own `Consumer` or use one of the many prebuilt ones:
 
 ```scala
 val list: Observable[Long] = 
@@ -243,19 +242,19 @@ val task: Task[Long] =
     list.consumeWith(consumer)
 ```
 
-You can find more examples in [Consumer documentation](./consumer.html).
+You can find more examples in the [Consumer documentation](./consumer.html).
 
 ### FoldLeft Methods
 
-Any method suffixed with `L` in `Observable` API converts it into `Task`.
+Any method suffixed with `L` in the API converts an `Observable` into a `Task`.
 
-For example you can use `firstL` to obtain the first element of the `Observable`:
+For example, you can use the `firstL` method to obtain the first element of the `Observable`:
 ```scala
 // Task(0)
 val task: Task[Int] = Observable.range(0, 1000).firstL
 ```
 
-Equivalent to the `Task` described in previous section would be:
+The following example achieves the same result as the previous section on `Consumer`:
 
 ```scala
 val list: Observable[Long] = 
@@ -266,9 +265,9 @@ val list: Observable[Long] =
 val task: Task[Long] =
     list.foldLeftL(0L)(_ + _)
 ```
-## Building Observable
+## Building an Observable
 
-You can find them in `Observable` companion object. Below are several examples:
+These methods are available via the `Observable` companion object. Below are several examples:
 
 ### Observable.pure (now)
 
